@@ -12,6 +12,7 @@
   },
   "permissions": [
     "notifications",
+    "alarms",
 
     "http://www.reddit.com/"
   ]

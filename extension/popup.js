@@ -34,6 +34,8 @@ var notificationIcon = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANIAAADSCA
       }
   },
 
+  scheduler = new RedditScheduler(),
+
   onSubmitFinish = function (res) {
     var url = '', 
         msg;  
@@ -50,14 +52,15 @@ var notificationIcon = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANIAAADSCA
   },
 
   onSubmit = function () {
-    RedditScheduler.checkUserName();
+    scheduler.checkUserName();
 
     var subreddit = $('input[name=subreddit]').val(),
         title = $('input[name=title]').val(),
         url = $('input[name=url]').val(),
-        text = $('textarea[name=text]').val();
+        text = $('textarea[name=text]').val(),
+        postTime = $('#postTime option:selected').val();
 
-    RedditScheduler.postNew(subreddit, url, title, text)
+    scheduler.postDelayed(postTime, subreddit, url, title, text)
       .always(onSubmitFinish); 
 
     return false;
@@ -65,14 +68,22 @@ var notificationIcon = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANIAAADSCA
 
 // Run our kitten generation script as soon as the document's DOM is ready.
 document.addEventListener('DOMContentLoaded', function () {
-  //kittenGenerator.requestKittens();
+  var postTimes = scheduler.getPostTimes();
+
+  $('#postTime').empty();
+  postTimes.forEach(function (el, index, array) {
+    $('#postTime').append('<option value="' + el + '">' + el + '</option>');
+  });
+
+
 
   $('.submit').click(onSubmit);
 
   $('.logout').click(function () {
-    RedditScheduler.logOut();
+    scheduler.logOut();
 
     return false;
   });
+
 
 });

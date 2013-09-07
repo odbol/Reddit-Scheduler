@@ -30,6 +30,8 @@
       - [1]: http://developer.chrome.com/extensions/contentSecurityPolicy.html
      -->
     <script src="lib/jquery-2.0.3.js"></script>
+    <script src="lib/moment.js"></script>
+
     <script src="lib/gnarwhal.js"></script>
     <script src="lib/reddit_scheduler.js"></script>
     <script src="popup.js"></script>
@@ -41,7 +43,10 @@
       <input type='text' name='url' placeholder='URL' autocomplete='on' />
       <textarea name='text' rows='5' cols='30' placeholder='Text'></textarea>
 
-      <a href='#' class='button submit'>Schedule Post</a>
+      <a href='#' class='button submit'>Schedule Post</a> for 
+        <select id='postTime'>
+          <option>Select Time to post</option>
+        </select>  
 
       <h1>Submitted Posts</h1>
       <ol id='messages'>
