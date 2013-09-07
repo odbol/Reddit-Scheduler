@@ -50,17 +50,14 @@ var notificationIcon = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANIAAADSCA
   },
 
   onSubmit = function () {
-    if (!getUsername()){
-      setUsername(prompt("Enter reddit username"));
-      setPassword(prompt("Enter password (saved locally)"));
-    }
+    RedditScheduler.checkUserName();
 
     var subreddit = $('input[name=subreddit]').val(),
         title = $('input[name=title]').val(),
         url = $('input[name=url]').val(),
         text = $('textarea[name=text]').val();
 
-    postNew(subreddit, url, title, text)
+    RedditScheduler.postNew(subreddit, url, title, text)
       .always(onSubmitFinish); 
 
     return false;
@@ -73,7 +70,7 @@ document.addEventListener('DOMContentLoaded', function () {
   $('.submit').click(onSubmit);
 
   $('.logout').click(function () {
-    logOut();
+    RedditScheduler.logOut();
 
     return false;
   });
