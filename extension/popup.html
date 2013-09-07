@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Getting Started Extension's Popup</title>
+    <style>
+      body {
+        min-width: 357px;
+        overflow-x: hidden;
+      }
+
+      img {
+        margin: 5px;
+        border: 2px solid black;
+        vertical-align: middle;
+        width: 75px;
+        height: 75px;
+      }
+
+      input {
+        display:block;
+        width: 75%;
+      }
+    </style>
+
+    <!--
+      - JavaScript and HTML must be in separate files: see our Content Security
+      - Policy documentation[1] for details and explanation.
+      -
+      - [1]: http://developer.chrome.com/extensions/contentSecurityPolicy.html
+     -->
+    <script src="lib/jquery-2.0.3.js"></script>
+    <script src="lib/reddit_scheduler.js"></script>
+    <script src="popup.js"></script>
+  </head>
+  <body>
+      <h1>Reddit Scheduler</h1>
+      <input type='text' name='subreddit' placeholder='Subreddit' autocomplete />
+      <input type='text' name='title' placeholder='Title' autocomplete />
+      <input type='text' name='url' placeholder='URL' autocomplete />
+      <textarea name='text' rows='5' cols='30' placeholder='Text'></textarea>
+
+      <a href='#' class='button submit'>Schedule Post</a>
+
+      <h1>Submitted Posts</h1>
+      <ol id='messages'>
+
+      </ol>
+
+      <a href='#' class='button logout'>Log Out</a>
+  </body>
+</html>
+
