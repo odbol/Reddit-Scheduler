@@ -106,7 +106,7 @@ Gnarwhal.prototype.login = function(user, pass) {
 
 Posts to the specified subreddit. Must login() first.
 
-text is optional. If included, the post will be a self post 
+text is optional. If included, or if url is missing, the post will be a self post.
 
 **/
 Gnarwhal.prototype.submit = function(subreddit, url, title, text) {

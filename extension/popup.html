@@ -7,6 +7,7 @@
         min-width: 357px;
         overflow-x: hidden;
         font-family: Futura, Helvetica, Arial, sans-serif;
+        font-size: 14px;
       }
 
       img {
@@ -21,6 +22,67 @@
         display:block;
         width: 75%;
       }
+
+      body a,
+      body a:hover,
+      body a:link,
+      body a:visited,
+      body a:active {
+        color: #39BAE2;
+        text-decoration: none;
+
+      }
+
+      h1 {
+        font-size: 18px;
+      }
+
+      h2 {
+        font-size: 16px;
+      }
+
+      .button {
+        display: inline-block;
+        padding: 7px;
+        margin: 5px;
+        background: #39BAE2;
+        color: #fff;
+
+        border-radius: 5px;
+      }
+
+        body a.button,
+        body a.button:hover,
+        body a.button:link,
+        body a.button:visited,
+        body a.button:active {
+          color: #fff;
+        }
+
+      .post {
+        margin-bottom: 10px;
+      }
+
+      .actionsMenu {
+        margin: 5px 0;
+      }
+
+      .actionsMenu,
+      .actionsMenu a,
+      .actionsMenu a:hover,
+      .actionsMenu a:link,
+      .actionsMenu a:visited,
+      .actionsMenu a:active {
+        font-size: 10px;
+        color: #ccc;
+        text-decoration: none;
+      }
+
+
+      .actionsMenu a:hover {
+        color: #ddd;
+        text-decoration: underline;
+      }
     </style>
 
     <!--
@@ -32,6 +94,11 @@
     <script src="lib/jquery-2.0.3.js"></script>
     <script src="lib/moment.js"></script>
 
+    <script src="lib/backbone/mustache.js"></script>
+    <script src="lib/backbone/underscore.js"></script>
+    <script src="lib/backbone/backbone.js"></script>
+    <script src="lib/backbone/backbone.localStorage.js"></script>
+
     <script src="lib/gnarwhal.js"></script>
     <script src="lib/reddit_scheduler.js"></script>
     <script src="popup.js"></script>
@@ -42,18 +109,36 @@
       <input type='text' name='title' placeholder='Title' autocomplete='on' />
       <input type='text' name='url' placeholder='URL' autocomplete='on' />
       <textarea name='text' rows='5' cols='30' placeholder='Text'></textarea>
-
-      <a href='#' class='button submit'>Schedule Post</a> for 
+      <p>
+        <a href='#' class='button submit'>Schedule Post</a> for 
         <select id='postTime'>
           <option>Select Time to post</option>
         </select>  
+      </p>
+
+      <h1>Pending Posts</h1>
+
+      <div id='pending'>
+
+      </div>
 
       <h1>Submitted Posts</h1>
-      <ol id='messages'>
 
-      </ol>
+      <div id='submitted'>
+
+      </div>
 
       <a href='#' class='button logout'>Log Out</a>
   </body>
+
+  <script id='templatePost' type='text/html'>
+    <div class='post'>
+      <a href="{{redditUrl}}">{{title}}</a>
+      
+      <p class='actionsMenu'>
+        {{prettyDate}} &sdot; {{subreddit}} &sdot; <a href='#' class="delete">delete</a><!-- &sdot; <a href='#' class="button edit">edit</a> -->
+      </p>
+    </div>
+  </script>
 </html>
 

@@ -5,7 +5,9 @@
 
 	Schedules your posts on Reddit. 
 
-	Requires Gnarwhal.js, a simple Javascript Reddit API wrapper.
+	Requires:
+		- Gnarwhal.js, a simple Javascript Reddit API wrapper.
+		- Backbone.js
 
 	by Tyler Freeman
 	http://odbol.com
@@ -27,6 +29,58 @@ var _api = null,
 		return _api;
 	},
 
+
+	/***
+		Post model. Holds the info to post, as well as status info.
+	**/
+	RedditPost = Backbone.Model.extend({
+		initialize : function() {
+			this.set({isPosted: false});
+			//this.set({postDate: false});
+			this.set({numRetries: 0});
+		},
+
+		destroy : function () {
+			var alarmName = this.get('alarmName');
+
+			if (alarmName) {
+				chrome.alarms.clear(alarmName);
+			}
+
+			// call super
+			Backbone.Model.prototype.destroy.apply(this, arguments);
+		},
+
+		parse : function (res, opts) {
+			if (res.postDate && !res.postDate.isValid) { // check if it's a moment object or just a data string
+				res.postDate = moment(res.postDate);
+			}
+
+			return res;
+		}
+	}),
+
+	// private collection of all posts
+	PostCollection = Backbone.Collection.extend({
+		model: RedditPost,
+		localStorage: new Backbone.LocalStorage("RSAllPosts"),
+
+		// Filter down the list of all todo items that are finished.
+		submitted: function() {
+			return this.filter(function(post) {
+				return post.get('isPosted'); 
+			});
+		},
+
+		// Filter down the list to only todo items that are still not finished.
+		pending: function() {
+			return this.without.apply(this, this.submitted());
+		},
+	}),
+
+	_AllPosts = new PostCollection(),
+
+
 	/***
 		The Reddit Base class. 
 
@@ -40,6 +94,10 @@ var _api = null,
 	};
 
 RedditBase.prototype =	{
+		getAllPosts : function () {
+			return _AllPosts;
+		},
+
 		getUsername : function() {
 			return localStorage.getItem('RSUsername');
 		},
@@ -73,24 +131,38 @@ RedditBase.prototype =	{
 		/*** 
 			Logs in with stored username/pass and submits a new post to reddit.
 
-			Arguments are the same as Narwhal.submit();
+			post is a RedditPost model object.
 
-			Returns a promise indicating status.
+			Returns a promise indicating status:
+			done() receives the post, with updated info.
+			fail() receives the error message.
 
 		**/
-		postNew : function () {
+		postNew : function (post) {
 			var RS = this;
 
-			var origArguments = arguments,
-				p = getApi(), 
-				promise = new Deferred();
+			var p = getApi(), 
+				promise = new Deferred(),
+				onLoggedIn = function () {
+					var onFail = function (res) {
+							post.set('numRetries', post.get('numRetries') + 1);
 
-			p.login(RS.getUsername(), RS.getPassword())
-				.done(function () {
+							promise.reject.apply(promise, arguments);
+						},
+						onSuccess = function (res) {
+							post.set('postDate', moment());
+							post.set('isPosted', true);
+							post.set('redditUrl', res.json.data.url);
+
+							post.save();
+
+							promise.resolve(post);
+						};
+
 					printDebug("logged in ", p.user());
 					
 					if (IS_DRY_RUN) {
-						promise.resolve({
+						onSuccess({
 							json : {
 								data : {
 									url: "Dry run only, not submitted to reddit"
@@ -100,12 +172,33 @@ RedditBase.prototype =	{
 						return;
 					}
 
-					p.submit.apply(p, origArguments)
-						.done(promise.resolve)
-						.fail(promise.reject);
-				})
-				.fail(promise.reject);
-			
+					p.submit(
+							post.get('subreddit'), 
+							post.get('url'), 
+							post.get('title'), 
+							post.get('text'))
+						.done(function (res) {
+
+							if (res.json && res.json.data) {
+								onSuccess.apply(this, arguments);
+							}
+							else {
+								onFail.apply(this, arguments);
+							}
+						})
+						.fail(onFail);
+				};
+
+
+			if (IS_DRY_RUN) {
+				onLoggedIn();
+			}
+			else {
+				p.login(RS.getUsername(), RS.getPassword())
+					.done(onLoggedIn)
+					.fail(promise.reject);
+			}	
+
 			return promise.promise();
 		},
 	
@@ -198,30 +291,38 @@ RedditScheduler.prototype = $.extend(RedditBase.prototype, {
 		/*** 
 			Logs in with stored username/pass and submits a new post to reddit at specified time.
 
-			Arguments are the same as Narwhal.submit();
+			Arguments are the same as postNew(), except with the new postTime preceding all.
 
-			Returns a promise indicating status.
+			postTime: a string from getPostTimes();
+
+			Returns a promise indicating status, same as postNew().
 
 		**/
-		postDelayed : function (postTime) {
+		postDelayed : function (postTime, post) {
 			var RS = this,
 				argumentsForPostNew = Array.prototype.slice.call(arguments, 1),
 				promise = new Deferred(),
 				alarmInfo = RS.getAlarmInfo(postTime),
-				alarmName = "postdelayed_" + alarmId++;
+				alarmName = "rsalarm_" + alarmInfo.when,
+				alarm = null;
 
 			if (!alarmInfo) {
 				promise.reject("Invalid time.");
 			}
 			else {
 				if (chrome && chrome.alarms) {
-					chrome.alarms.create(alarmName, alarmInfo);
+					alarm = chrome.alarms.create(alarmName, alarmInfo);
+
+					post.set('alarmName', alarmName);
+					post.set('postDate', moment(alarmInfo.when));
+					_AllPosts.add(post);
+					post.save();
 
 					chrome.alarms.onAlarm.addListener(function (alarm) {
                         printDebug('Got alarm ', alarm);
                         
 						if (alarm.name == alarmName) {
-							RS.postNew.apply(RS, argumentsForPostNew)
+							RS.postNew(post)
 								.done(promise.resolve)
 								.fail(promise.reject);
 						}
