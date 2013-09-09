@@ -16,7 +16,8 @@
 // constants
 
 // if true, does not actually submit posts to reddit, just fakes it.
-var IS_DRY_RUN = true;
+var IS_DRY_RUN = false,
+	SHOW_DESKTOP_NOTIFICATIONS = true;
 
 
 var _api = null,
@@ -35,9 +36,9 @@ var _api = null,
 	**/
 	RedditPost = Backbone.Model.extend({
 		initialize : function() {
-			this.set({isPosted: false});
-			//this.set({postDate: false});
-			this.set({numRetries: 0});
+			// this.set({isPosted: false});
+			// this.set({postDate: false});
+			// this.set({numRetries: 0});
 		},
 
 		destroy : function () {
@@ -131,17 +132,26 @@ RedditBase.prototype =	{
 		/*** 
 			Logs in with stored username/pass and submits a new post to reddit.
 
-			post is a RedditPost model object.
+			postAttrs can be either a RedditPost model object, 
+			or the initializing attributes for a RedditPost model object. e.g.:								
+				{
+					subreddit: ...
+					title : ...
+					url : ...
+					text : ...
+				}
 
 			Returns a promise indicating status:
 			done() receives the post, with updated info.
 			fail() receives the error message.
 
 		**/
-		postNew : function (post) {
-			var RS = this;
+		postNew : function (postAttrs) {
+			var RS = this,
+				// decide if they sent a model or just the seeds of one
+				post = postAttrs.set ? postAttrs : new RedditPost(postAttrs),
 
-			var p = getApi(), 
+				p = getApi(), 
 				promise = new Deferred(),
 				onLoggedIn = function () {
 					var onFail = function (res) {
@@ -154,9 +164,9 @@ RedditBase.prototype =	{
 							post.set('isPosted', true);
 							post.set('redditUrl', res.json.data.url);
 
-							post.save();
-
-							promise.resolve(post);
+							post.save().done(function () {
+								promise.resolve(post);	
+							});
 						};
 
 					printDebug("logged in ", p.user());
@@ -189,6 +199,9 @@ RedditBase.prototype =	{
 						.fail(onFail);
 				};
 
+			if (SHOW_DESKTOP_NOTIFICATIONS) {
+				promise.always(onSubmittedShowNotification);
+			}
 
 			if (IS_DRY_RUN) {
 				onLoggedIn();
@@ -217,17 +230,6 @@ RedditBase.prototype =	{
 		    }
 
 		    return true;
-		},
-
-		test : function () {
-			var RS = this;
-
-			RS.checkUserName();
-
-			RS.postNew('sfmusic', 'http://www.indiegogo.com/projects/the-doomlaut-album', 
-					"Anyone recorded at Studio SQ? My band is planning to record there and could use some tips");
-
-			RS.postNew('gadgets', 'http://www.youtube.com/watch?v=8BJwaEixC9M', 'DrumPants: An Entire Band in your Pocket');
 		}
 	};
 
@@ -243,11 +245,52 @@ RedditBase.prototype =	{
 
 **/
 var RedditScheduler = function () {
+		var self = this,
 
+			/***
+				This doesn't matter, just need to register with onAlarm so we don't get cleaned out.
+			*/
+			onAlarm = function (alarm) {
+				console.log("Got alarm in background ", alarm);
+
+				_AllPosts.fetch(function () {
+	
+				}); 
+			},
+
+			/***
+
+				Response to a message from the RedditSchedulerClient
+				
+				request should be an object with a single key: the name of the method to call on RedditScheduler.
+					The value should be an array of arguments to pass to that method.
+			***/
+			onMessage =  function(request, sender, sendResponse) {
+				var func = _.keys(request)[0],
+					args = request[func],
+
+					promise = self[func].apply(self, args);
+
+				if (sendResponse) {
+					
+					// call them back when the post is saved to the datastore so they can retreive it,
+					// not when the post is actually made (which will be a while and beyond the life of the UI code)
+					promise.progress(function (step) {
+
+						if (step == 'saved') {
+							sendResponse();
+						}
+					})
+					.fail(sendResponse);
+				}
+			};
+
+		chrome.alarms.onAlarm.addListener(onAlarm);
+		chrome.runtime.onMessage.addListener(onMessage);
 	},
 	alarmId = 0;
 
-RedditScheduler.prototype = $.extend(RedditBase.prototype, {
+RedditScheduler.prototype = _.extend(RedditScheduler.prototype, RedditBase.prototype, {
 		setPostTimes : function(times) {
 
 			localStorage.setItem('RSPostTimes', 
@@ -298,9 +341,10 @@ RedditScheduler.prototype = $.extend(RedditBase.prototype, {
 			Returns a promise indicating status, same as postNew().
 
 		**/
-		postDelayed : function (postTime, post) {
+		postDelayed : function (postTime, postAttrs) {
 			var RS = this,
-				argumentsForPostNew = Array.prototype.slice.call(arguments, 1),
+				// decide if they sent a model or just the seeds of one
+				post = postAttrs.set ? postAttrs : new RedditPost(postAttrs),
 				promise = new Deferred(),
 				alarmInfo = RS.getAlarmInfo(postTime),
 				alarmName = "rsalarm_" + alarmInfo.when,
@@ -316,16 +360,21 @@ RedditScheduler.prototype = $.extend(RedditBase.prototype, {
 					post.set('alarmName', alarmName);
 					post.set('postDate', moment(alarmInfo.when));
 					_AllPosts.add(post);
-					post.save();
 
-					chrome.alarms.onAlarm.addListener(function (alarm) {
-                        printDebug('Got alarm ', alarm);
-                        
-						if (alarm.name == alarmName) {
-							RS.postNew(post)
-								.done(promise.resolve)
-								.fail(promise.reject);
-						}
+					post.save().done(function () {
+						// we've saved, let the UI know that they can refresh from datastore now
+						promise.notify('saved');
+
+						// schedule it for later
+						chrome.alarms.onAlarm.addListener(function (alarm) {
+                            printDebug('Got alarm ', alarm);
+                            
+							if (alarm.name == alarmName) {
+								RS.postNew(post)
+									.done(promise.resolve)
+									.fail(promise.reject);
+							}
+						});
 					});
 				}
 				else {
@@ -371,3 +420,97 @@ RedditScheduler.prototype = $.extend(RedditBase.prototype, {
 			return newDate;
 		}
 	});
+
+
+
+
+/***
+	A proxy client for the RedditScheduler. Sends all delayed posts to the background page of the extension,
+	so alarms can exist beyond the life of the calling page.
+
+	Use this in your popup.js and other content scripts.
+	
+***/
+var RedditSchedulerClient = function () {
+
+	};
+
+RedditSchedulerClient.prototype = _.extend(RedditSchedulerClient.prototype, RedditScheduler.prototype, {
+
+		/*** 
+			Logs in with stored username/pass and submits a new post to reddit at specified time.
+
+			Arguments are the same as postNew(), except with the new postTime preceding all.
+
+			postTime: a string from getPostTimes();
+
+			Returns an empty promise since we can't promise across boundries.
+
+		**/
+		postDelayed : function (postTime, post) {
+			var promise = new Deferred();
+
+			// always post to the background scheduler so it can keep track
+			chrome.runtime.sendMessage({
+					postDelayed : Array.prototype.slice.apply(arguments) 
+					// [
+					// 	postTime,
+					// 	new RedditPost(postOpts)
+					// ]
+				},
+				promise.resolve);
+
+			return promise.promise();
+		}
+
+	});
+
+
+
+
+
+var testBackboneLocal = function () {
+	_AllPosts.fetch()
+	// Object {state: function, always: function, then: function, promise: function, pipe: function…}
+	_AllPosts.pending()
+	// [
+	// child
+	// , 
+	// child
+	// , 
+	// child
+	// ]
+	_AllPosts.submitted()
+	// []
+	var big = _AllPosts.pending()[0]
+	// undefined
+	big.set('isPosted', true)
+	// child {cid: "c1", attributes: Object, collection: child, _changing: false, _previousAttributes: Object…}
+	big.save().done(function (e) { console.log(e)});
+	// Object {subreddit: "sdgf", title: "dasf", url: "TEST222222", text: "", isPosted: true…}
+	// Object {state: function, always: function, then: function, promise: function, pipe: function…}
+	_AllPosts.submitted()
+	// [
+	// child
+	// ]
+	_AllPosts.pending()
+	// [
+	// child
+	// , 
+	// child
+	// ]
+	_AllPosts.fetch({reset: true, success : function () {console.log.apply(console, arguments)}});
+	// Object {state: function, always: function, then: function, promise: function, pipe: function…}
+	_AllPosts.pending()
+	// [
+	// child
+	// , 
+	// child
+	// , 
+	// child
+	// ]
+	_AllPosts.submitted()
+	// []
+
+	// WTFFFFFF ^^^^^
+};

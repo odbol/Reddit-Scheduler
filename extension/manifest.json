@@ -15,5 +15,10 @@
     "alarms",
 
     "http://www.reddit.com/"
-  ]
+  ],
+
+  "background": {
+    "page": "background.html",
+    "persistent": true
+  }
 }
