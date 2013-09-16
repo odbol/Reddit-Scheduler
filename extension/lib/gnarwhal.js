@@ -75,29 +75,43 @@ var Deferred = $.Deferred,
 	};
 
 /***
-	Logs in and saves the user for later actions.
+	Logs in and saves the user for later actions, 
+	unless the user is already logged in.
 **/
 Gnarwhal.prototype.login = function(user, pass) {
 	var self = this,
-		promise = new Deferred();
+		promise = new Deferred(),
 
-	self.post('/api/login', {
-			user: user, 
-			passwd: pass
-		})
-		.done(function (loginRes) {
+		getUserInfo = function () {
+				return self.get('/api/me.json')
+					.pipe(function (res) {
+						if (res.data && res.data.modhash) {
+							return res;
+						}
+						else {
+							return new Deferred().reject(response);
+						}
+					})
+					.done(function (res) { 
+						// console.log(res);
 
-			self.get('/api/me.json')
-				.done(function (res) { 
-					// console.log(res);
+						// save the user and especially their modhash for submitting
+						self.user(res.data);
+						promise.resolve();
+					});
+			};
 
-					// save the user and especially their modhash for submitting
-					self.user(res.data);
-					promise.resolve();
-				})
-				.fail(promise.reject);
-		})
-		.fail(promise.reject);
+	// only log in if they aren't already
+	getUserInfo().fail(function () {
+		self.post('/api/login', {
+				user: user, 
+				passwd: pass
+			})
+			.done(function (loginRes) {
+				getUserInfo().fail(promise.reject);
+			})
+			.fail(promise.reject);
+	});
 
 	return promise.promise();
 };

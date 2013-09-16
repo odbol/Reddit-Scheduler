@@ -53,7 +53,8 @@ var
           //model: App,
 
           events: {
-            'click .delete': 'onClickDelete'
+            'click .delete': 'onClickDelete',
+            'click .edit': 'onClickEdit'
           },
 
           initialize : function () {
@@ -85,9 +86,10 @@ var
             this.getPosts().forEach(function (post, idx, arr) {
               var postDate = post.attributes.postDate,
                   html = self.template(_.extend({
-                      prettyDate : postDate && postDate.calendar() || ''
-                    }, 
-                    post.attributes));
+                            prettyDate : postDate && postDate.calendar() || '',
+                            url : '#'
+                          }, 
+                          post.attributes));
 
                 $(html).appendTo(self.$el)
                   .data('post', post);
@@ -104,7 +106,25 @@ var
                 post.destroy();
               //}
             }
+          },
+
+          onClickEdit : function (ev) {
+            var post = $(ev.target).parents('.post').data('post');
+
+            if (post) {
+              $('input[name=subreddit]').val(post.get('subreddit'));
+              $('input[name=title]').val(post.get('title'));
+              $('input[name=url]').val(post.get('url'));
+              $('textarea[name=text]').val(post.get('text'));
+
+              // they'll just have to start over
+              // but only if the post hasn't been submitted yet
+              if (!post.get('isPosted')) {
+                post.destroy();
+              }
+            }
           }
+
   }),
 
   PendingPosts = SubmittedPosts.extend({
@@ -127,6 +147,19 @@ document.addEventListener('DOMContentLoaded', function () {
         collection : allPosts,
         el : $('#pending')
       });
+
+
+    // make links actually clickable
+    $('body').on('click', 'a', function () {
+      var url = this.href;
+
+      if (url && url.length > 5 && /^http/.test(url)) { // don't open empty anchor links or links to the chrome-extension://
+        chrome.tabs.create({url: url, active: true});
+      }
+
+      return false;
+    });
+
 
   $('#postTime').empty();
   postTimes.forEach(function (el, index, array) {

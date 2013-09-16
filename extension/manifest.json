@@ -13,6 +13,7 @@
   "permissions": [
     "notifications",
     "alarms",
+    "tabs",
 
     "http://www.reddit.com/"
   ],
