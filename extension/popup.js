@@ -14,31 +14,59 @@
 var
   scheduler = new RedditSchedulerClient(),
 
+  needsToLogIn = function () {
+    return !(scheduler.getUsername() && scheduler.getPassword());
+  },
+  checkUserName = function () {
+      var promise = new Deferred();
+
+      if (needsToLogIn()) {
+        $('#loginDialog').removeClass('closed')
+          .find('.login.button')
+          .off('click')
+          .on('click', function () {
+            scheduler.setUsername($('input[name=username]').val());
+            scheduler.setPassword($('input[name=password]').val());
+
+            if (!needsToLogIn()) {
+              $('#loginDialog').addClass('closed');
+              promise.resolve();
+            }
+          });
+      }
+      else {
+        promise.resolve();
+      }
+
+      return promise.promise();
+  },
 
   onSubmit = function () {
-    scheduler.checkUserName();
+    checkUserName().done(function () {
 
-    var postOpts = {
-          subreddit : $('input[name=subreddit]').val(),
-          title : $('input[name=title]').val(),
-          url : $('input[name=url]').val(),
-          text : $('textarea[name=text]').val()
-        },
-        postTime = $('#postTime option:selected').val();
+      var postOpts = {
+            subreddit : $('input[name=subreddit]').val(),
+            title : $('input[name=title]').val(),
+            url : $('input[name=url]').val(),
+            text : $('textarea[name=text]').val()
+          },
+          postTime = $('#postTime option:selected').val();
 
-    scheduler.postDelayed(postTime, postOpts)
-      .always(function () {
-        // reload with the new posts
-        // this doesn't seem to work
-        scheduler.getAllPosts().fetch();
+      scheduler.postDelayed(postTime, postOpts)
+        .always(function () {
+          // reload with the new posts
+          // this doesn't seem to work
+          scheduler.getAllPosts().fetch();
 
-        // actually, fuck it, just close the window.
-        // it's too hard to get chrome to sync up localStorages between threads
-        window.close();
-      });
+          // actually, fuck it, just close the window.
+          // it's too hard to get chrome to sync up localStorages between threads
+          window.close();
+        });
 
-    // clear all fields
-    $('input, textarea').val('');
+      // clear all fields
+      $('input, textarea').val('');
+
+    });
 
     return false;
   },
@@ -175,6 +203,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     return false;
   });
+
+
+
 
 
   // load everything from local storage!
