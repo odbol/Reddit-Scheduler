@@ -1,11 +1,18 @@
 Reddit-Scheduler
 ================
+by [odbol](http://odbol.com)
 
 Schedules your posts on Reddit. Includes simple Javascript Reddit API wrapper.
 
 Click the button to share a post on reddit: just choose a subreddit, type a title, and let the scheduler do the rest! 
 
 Customizable post calendar lets you choose exactly what to post and when.
+
+
+Installation:
+------------
+
+https://chrome.google.com/webstore/detail/reddit-scheduler/ekdpobinhbpdigokooncmmmamhmjfigl
 
 You will enter your reddit account info once you schedule your first post.
 
