@@ -299,14 +299,25 @@ RedditScheduler.prototype = _.extend(RedditScheduler.prototype, RedditBase.proto
 
 		getDefaultPostTimes : function() {
 			return [
-				'1 minutes',
-				'10 minutes',
+				'5 minutes',
+				'15 minutes', //intervals of 15 minutes
+				'30 minutes',
+				'45 minutes',
 				'1 hours',
+				'2 hours',
 				'3 hours',
-				'10:14am',
-				'1:06pm',
-				'5:22pm',
-				'9:08pm'
+				'12:00am', //midnight
+				'2:00am',
+				'4:00am',
+				'6:00am',
+				'8:00am',
+				'10:00am',
+				'12:00pm', //noon
+				'2:00pm',
+				'4:00pm',
+				'6:00pm',
+				'8:00pm',
+				'10:00pm'
 				];
 		},  
 
